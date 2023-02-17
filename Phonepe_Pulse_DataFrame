@@ -1,0 +1,981 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyPqF9Jc9ssVp5eLg9TdglnX",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/shshahul/Zen_Project2/blob/main/Phonepe_Pulse_DataFrame\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "#  Extract data from the Phonepe pulse Github repository through scripting and clone it.."
+      ],
+      "metadata": {
+        "id": "ctvBU5rsURIv"
+      }
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "Zc5yJ5vAT-pk"
+      },
+      "outputs": [],
+      "source": [
+        "#cloning the repository from git hub\n",
+        "\n",
+        "! git clone \"https://github.com/PhonePe/pulse.git\""
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# Transform the data into a suitable format and perform any necessary cleaning and pre-processing steps."
+      ],
+      "metadata": {
+        "id": "Q-QnMDZ8VMO1"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#After created the clone of GIT-HUB repository then,\n",
+        "#import libraries for the program\n",
+        "\n",
+        "import pandas as pd\n",
+        "import json\n",
+        "import os\n",
+        "\n",
+        "#This is to direct the path to get the data as states\n",
+        "\n",
+        "path1=\"/content/pulse/data/aggregated/transaction/country/india/state/\"\n",
+        "Agg_state_list=os.listdir(path1)\n",
+        "Agg_state_list\n",
+        "#Agg_state_list--> to get the list of states in India\n",
+        "\n",
+        "#<------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------>#\n",
+        "\n",
+        "#This is to extract the data's to create a dataframe\n",
+        "\n",
+        "clm={'State':[], 'Year':[],'Quater':[],'Transacion_type':[], 'Transacion_count':[], 'Transacion_amount':[]}\n",
+        "for i in Agg_state_list:\n",
+        "    p_i=path1+i+\"/\"\n",
+        "    Agg_yr=os.listdir(p_i)    \n",
+        "    for j in Agg_yr:\n",
+        "        p_j=p_i+j+\"/\"\n",
+        "        Agg_yr_list=os.listdir(p_j)        \n",
+        "        for k in Agg_yr_list:\n",
+        "            p_k=p_j+k\n",
+        "            Data=open(p_k,'r')\n",
+        "            D=json.load(Data)\n",
+        "            for z in D['data']['transactionData']:\n",
+        "              Name=z['name']\n",
+        "              count=z['paymentInstruments'][0]['count']\n",
+        "              amount=z['paymentInstruments'][0]['amount']\n",
+        "              clm['Transacion_type'].append(Name)\n",
+        "              clm['Transacion_count'].append(count)\n",
+        "              clm['Transacion_amount'].append(amount)\n",
+        "              clm['State'].append(i)\n",
+        "              clm['Year'].append(j)\n",
+        "              clm['Quater'].append(int(k.strip('.json')))\n",
+        "#Succesfully created a dataframe\n",
+        "pd.DataFrame(clm)\n",
+        "dfAg = pd.DataFrame(clm)\n"
+      ],
+      "metadata": {
+        "id": "cn3P9Q-vx8Fm"
+      },
+      "execution_count": 5,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "dfAg"
+      ],
+      "metadata": {
+        "id": "BZD_p4XKID8Y"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# insert the dataframe into a sqlite database\n",
+        "import sqlite3\n",
+        "con = sqlite3.connect('pulse.db')\n",
+        "c = con.cursor()"
+      ],
+      "metadata": {
+        "id": "eZ_Gwt4fwN8_"
+      },
+      "execution_count": 6,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#Create a table in database\n",
+        "c.execute('''CREATE TABLE IF NOT EXISTS transaction_data(\n",
+        "            State TEXT,\n",
+        "            Year TEXT,\n",
+        "            Quater TEXT,\n",
+        "            Transacion_type TEXT,\n",
+        "            Transacion_count TEXT,\n",
+        "            Transacion_amount TEXT\n",
+        "            )''')\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "k4fZrk7kyAu1",
+        "outputId": "7ed5833f-d8c6-4776-e3f4-963827daa198"
+      },
+      "execution_count": 7,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "<sqlite3.Cursor at 0x7f13aec70a40>"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 7
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#insert the All data into the table\n",
+        "c.executemany('INSERT INTO transaction_data VALUES(?,?,?,?,?,?)',\n",
+        "              zip(clm['State'], clm['Year'],clm['Quater'],clm['Transacion_type'], clm['Transacion_count'], clm['Transacion_amount']))\n"
+      ],
+      "metadata": {
+        "id": "zgDaarpszN-d",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "b0d0c2c8-4ee2-4414-f0d2-30592ef2c5a0"
+      },
+      "execution_count": 8,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "<sqlite3.Cursor at 0x7f13aec70a40>"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 8
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#show the data in the table\n",
+        "x=c.execute(\"SELECT * FROM transaction_data\")\n",
+        "x=c.fetchall()\n",
+        "for row in x:\n",
+        "    print(row)"
+      ],
+      "metadata": {
+        "id": "paohN1Cv3IhV"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#fetch the data from the table where the state is Tamil Nadu and year is 2018 and quater is 1 and transaction type is Recharge and bill payments\n",
+        "\n",
+        "d=c.execute(\"SELECT * FROM transaction_data WHERE State='andhra-pradesh' AND Year='2018' AND Quater='1' AND Transacion_type='Recharge & bill payments' AND Transacion_amount>0\")\n",
+        "d=c.fetchall()\n",
+        "for row in d:\n",
+        "  print(row)"
+      ],
+      "metadata": {
+        "id": "4_YmKyYE3Sjp",
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "outputId": "da53f242-6378-45bd-88a3-a5c5c44416c0"
+      },
+      "execution_count": 10,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "('andhra-pradesh', '2018', '1', 'Recharge & bill payments', '5027448', '892293975.669856')\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# Commit changes and close connection\n",
+        "con.commit()\n",
+        "con.close()"
+      ],
+      "metadata": {
+        "id": "gEaKeZZB4-2q"
+      },
+      "execution_count": 11,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [],
+      "metadata": {
+        "id": "7mOHLkfbZ_Z-"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "path2 = \"/content/pulse/data/aggregated/user/country/india/state/\"\n",
+        "Agg_transc_user_list = os.listdir(path2)\n",
+        "\n",
+        "#extracting the data from Aggregate---->Transaction--->user--->state to create the dataframe\n",
+        "\n",
+        "clm = clm={\"No of Registered User\":[],\"AppOpens\":[],'State':[], 'Year':[], \"Quarter\":[]}\n",
+        "\n",
+        "for i in Agg_transc_user_list:\n",
+        "  p_i = path2 + i +\"/\"\n",
+        "  Agg_year = os.listdir(p_i)\n",
+        "  for j in Agg_year:\n",
+        "    p_j = p_i + j + \"/\"\n",
+        "    Agg_year_list = os.listdir(p_j)\n",
+        "    for k in Agg_year_list:\n",
+        "      p_k = p_j + k\n",
+        "      with open(p_k,'r') as f:\n",
+        "        data = json.load(f)        \n",
+        "        clm['No of Registered User'].append(data['data']['aggregated']['registeredUsers'])\n",
+        "        clm['AppOpens'].append(data['data']['aggregated']['appOpens'])\n",
+        "        #clm['Percentage'].append(data['data']['usersByDevice'][0]['percentage'])\n",
+        "        #clm['Brand'].append(data['data']['usersByDevice'])\n",
+        "        clm['State'].append(i)\n",
+        "        clm['Year'].append(j)\n",
+        "        clm['Quarter'].append(int(k.strip('.json')))\n",
+        "\n",
+        "pd_agg_user = pd.DataFrame(clm)"
+      ],
+      "metadata": {
+        "id": "xmUQIp0OIgXF"
+      },
+      "execution_count": 16,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# #Connect to the database by excuting the following \n",
+        "# conn = sqlite3.connect('transaction_data.db')\n",
+        "# c = conn.cursor()\n",
+        "# #Execute the SELECT statement\n",
+        "# c.execute(\"SELECT * FROM transaction_data\")\n",
+        "\n",
+        "# # Fetch all the rows in the result set\n",
+        "# rows = c.fetchall()\n",
+        "\n",
+        "# # Loop through each row and print the data\n",
+        "# for row in rows:\n",
+        "#     print(row)\n",
+        "\n",
+        "# # Close the cursor and the connection\n",
+        "# c.close()\n",
+        "# conn.close()"
+      ],
+      "metadata": {
+        "id": "DVMg78lf5PDi"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "# In this path extracting json data in to dataframe map-->transaction-->hover-->country-->india-->state\n",
+        "path3 = \"/content/pulse/data/map/transaction/hover/country/india/state/\"\n",
+        "map_state_list = os.listdir(path3)\n",
+        "\n",
+        "# This is to extract the data's to create a dataframe\n",
+        "clm = {'State': [], 'district':[],'Year': [], 'Quarter': [], 'Metric_type': [], 'Metric_count': [], 'Metric_amount': []}\n",
+        "for i in map_state_list:\n",
+        "    p_i = path3 + i + \"/\"\n",
+        "    Agg_yrs = os.listdir(p_i)\n",
+        "    for j in Agg_yrs:\n",
+        "        p_j = p_i + j + \"/\"\n",
+        "        Agg_yrs_list = os.listdir(p_j)\n",
+        "        for k in Agg_yrs_list:\n",
+        "            p_k = p_j + k\n",
+        "            with open(p_k, 'r') as f:\n",
+        "                data = json.load(f)\n",
+        "                clm['district'].append(data['data']['hoverDataList'][0]['name'])\n",
+        "                clm['State'].append(i)\n",
+        "                clm['Quarter'].append(j)\n",
+        "                clm['Year'].append(int(k.strip('.json')))\n",
+        "                for metric in data['data']['hoverDataList'][0]['metric']:\n",
+        "                    clm['Metric_type'].append(metric['type'])\n",
+        "                    clm['Metric_count'].append(metric['count'])\n",
+        "                    clm['Metric_amount'].append(metric['amount'])\n",
+        "\n",
+        "df3 = pd.DataFrame(clm)\n",
+        "\n"
+      ],
+      "metadata": {
+        "id": "2v1HvktvBwng"
+      },
+      "execution_count": 17,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#Check for the null values\n",
+        "df3.isnull().sum()"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "8viRVY28-Voq",
+        "outputId": "ecfd20bc-beb6-4f85-8938-bfe61da0b84a"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "State            0\n",
+              "district         0\n",
+              "Year             0\n",
+              "Quarter          0\n",
+              "Metric_type      0\n",
+              "Metric_count     0\n",
+              "Metric_amount    0\n",
+              "dtype: int64"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 16
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "conn = sqlite3.connect(\"Map_Transaction_india.db\")\n",
+        "s = conn.cursor()"
+      ],
+      "metadata": {
+        "id": "kzEJTSQB7oDJ"
+      },
+      "execution_count": 18,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#Create a table in database\n",
+        "s.execute('''CREATE TABLE IF NOT EXISTS Map_Transaction_india(\n",
+        "            State TEXT,\n",
+        "            district TEXT,\n",
+        "            Year TEXT,\n",
+        "            Quarter TEXT,\n",
+        "            Metric_type TEXT,\n",
+        "            Metric_count TEXT,\n",
+        "            Metric_amount TEXT\n",
+        "            )''')"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "SMxGZLdX5Emv",
+        "outputId": "42c80d4e-63be-46de-e687-196e885464ba"
+      },
+      "execution_count": 19,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "<sqlite3.Cursor at 0x7f13ac148500>"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 19
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "s.executemany('INSERT INTO Map_Transaction_india VALUES(?,?,?,?,?,?,?)',\n",
+        "             zip(clm['State'],clm['district'],clm['Year'],clm['Quarter'],clm['Metric_type'],clm['Metric_count'],clm['Metric_amount']))\n"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "Wg5zqCq88I6O",
+        "outputId": "c9abc83e-fa32-40be-de2c-9372b86d5336"
+      },
+      "execution_count": 20,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "<sqlite3.Cursor at 0x7f13ac148500>"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 20
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "conn = sqlite3.connect('Map_Transaction_india.db')\n",
+        "c = conn.cursor()"
+      ],
+      "metadata": {
+        "id": "vidvCsZc_9P1"
+      },
+      "execution_count": 21,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "c.execute(\"SELECT * FROM Map_Transaction_india\")\n",
+        "\n",
+        "# Fetch all the rows in the result set\n",
+        "rows = s.fetchall()\n",
+        "\n",
+        "# Loop through each row and print the data\n",
+        "for row in rows:\n",
+        "    print(row)\n",
+        "\n",
+        "conn.commit()\n",
+        "# Close the connection\n",
+        "conn.close()    "
+      ],
+      "metadata": {
+        "id": "ymyMuMO43sR8"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#This is to direct the path to get the data as states map-->user-->hover-->country-->india-->state\n",
+        "path4 = \"/content/pulse/data/map/user/hover/country/india/state/\"\n",
+        "map_state_list = os.listdir(path4)\n",
+        "\n",
+        "\n",
+        "clm = {'State': [], 'Year': [], 'Quarter': [], 'No of users': [], 'AppOpen':[], 'Area':[] }\n",
+        "for i in map_state_list:\n",
+        "    p_i = path4 + i + \"/\"\n",
+        "    Agg_yrs = os.listdir(p_i)\n",
+        "    for j in Agg_yrs:\n",
+        "        p_j = p_i + j + \"/\"\n",
+        "        Agg_yrs_list = os.listdir(p_j)\n",
+        "        for k in Agg_yrs_list:\n",
+        "            p_k = p_j + k\n",
+        "            with open(p_k, 'r') as f:\n",
+        "                data = json.load(f)\n",
+        "                clm['State'].append(i)\n",
+        "                clm['Year'].append(j)\n",
+        "                clm['Quarter'].append(int(k.strip('.json')))\n",
+        "                clm['No of users'].append(data['data']['hoverData'])\n",
+        "                clm['AppOpen'].append(None)\n",
+        "                clm['Area'].append(None)\n",
+        "df4 = pd.DataFrame(clm)"
+      ],
+      "metadata": {
+        "id": "XhzDgbfVF1Ce"
+      },
+      "execution_count": 22,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "path5 = \"/content/pulse/data/top/transaction/country/india/state/\"\n",
+        "map_state_list = os.listdir(path5)\n",
+        "\n",
+        "# This is to extract the data's to create a dataframe\n",
+        "clm = {'State': [], 'district':[],'Year': [], 'Quarter': [], 'Metric_type': [], 'Metric_count': [], 'Metric_amount': []}\n",
+        "for i in map_state_list:\n",
+        "    p_i = path5 + i + \"/\"\n",
+        "    Agg_yrs = os.listdir(p_i)\n",
+        "    for j in Agg_yrs:\n",
+        "        p_j = p_i + j + \"/\"\n",
+        "        Agg_yrs_list = os.listdir(p_j)\n",
+        "        for k in Agg_yrs_list:\n",
+        "            p_k = p_j + k\n",
+        "            with open(p_k, 'r') as f:\n",
+        "                data = json.load(f)\n",
+        "                clm['district'].append(data['data'][\"districts\"][0]['entityName'])\n",
+        "                clm['Metric_type'].append(data['data'][\"districts\"][0]['metric']['type'])\n",
+        "                clm['Metric_count'].append(data['data'][\"districts\"][0]['metric']['count'])\n",
+        "                clm['Metric_amount'].append(data['data'][\"districts\"][0]['metric']['amount'])\n",
+        "                clm['State'].append(i)\n",
+        "                clm['Quarter'].append(j)\n",
+        "                clm['Year'].append(int(k.strip('.json')))\n",
+        "\n",
+        "df5=pd.DataFrame(clm)                            \n",
+        "                    \n",
+        "                   "
+      ],
+      "metadata": {
+        "id": "QmzqcfvR-Frb"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "path6 = \"/content/pulse/data/top/user/country/india/state/\"\n",
+        "map_state_list = os.listdir(path6)\n",
+        "\n",
+        "# This is to extract the data's to create a dataframe\n",
+        "clm = {'State': [], 'district':[],'Year': [], 'Quarter': [], 'No of Regi_user':[]}\n",
+        "for i in map_state_list:\n",
+        "    p_i = path6 + i + \"/\"\n",
+        "    Agg_yrs = os.listdir(p_i)\n",
+        "    for j in Agg_yrs:\n",
+        "        p_j = p_i + j + \"/\"\n",
+        "        Agg_yrs_list = os.listdir(p_j)\n",
+        "        for k in Agg_yrs_list:\n",
+        "            p_k = p_j + k\n",
+        "            with open(p_k, 'r') as f:\n",
+        "                data = json.load(f)\n",
+        "                clm['State'].append(i)\n",
+        "                clm['Quarter'].append(j)\n",
+        "                clm['Year'].append(int(k.strip('.json')))\n",
+        "                clm['district'].append(data['data']['districts'][0]['name'])\n",
+        "                clm['No of Regi_user'].append(data['data']['districts'][0]['registeredUsers'])\n",
+        "df6 = pd.DataFrame(clm)"
+      ],
+      "metadata": {
+        "id": "UnpPx6nTKKkN"
+      },
+      "execution_count": 27,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#Created 6 data frames"
+      ],
+      "metadata": {
+        "id": "VK1FRvz-A9rq"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [],
+      "metadata": {
+        "id": "6HAkseyiA_cx"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!pip install streamlit"
+      ],
+      "metadata": {
+        "id": "ZUIrvAZoWLok"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import plotly.express as px\n",
+        "import matplotlib.pyplot as plot\n",
+        "import pandas as pd\n",
+        "import streamlit as st\n",
+        "import json"
+      ],
+      "metadata": {
+        "id": "CiRlKOR0A-Sw"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "india_states = json.load(open(\"india_states.geojson\",'r'))"
+      ],
+      "metadata": {
+        "id": "Rn47jT9AWVdH"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "india_states['features'][0]['properties']"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "mkGWUJVOe1AQ",
+        "outputId": "51c84f1a-5e8a-46f6-da7c-138c58608d34"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "{'cartodb_id': 1, 'state_code': 0, 'st_nm': 'Telangana'}"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 100
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [],
+      "metadata": {
+        "id": "0jMr4vWjqWn_"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "Agg_Transc_Ind_State.isnull().sum"
+      ],
+      "metadata": {
+        "id": "-ElfQ-NEfAlf"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "Agg_Transc_Ind_State = Agg_Transc_Ind_State.to_csv(\"Agg_Transc_Ind_State.csv\")"
+      ],
+      "metadata": {
+        "id": "stZgA74Ei9Yt"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df = pd.read_csv(\"Agg_Transc_Ind_State.csv\")"
+      ],
+      "metadata": {
+        "id": "wNjn5vSQjkLS"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df.tail()"
+      ],
+      "metadata": {
+        "id": "ymt7ohepj2QH"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df['State'].value_counts()"
+      ],
+      "metadata": {
+        "id": "cN2zHhr_kOzp"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df['State'] = df['State'].str.title()"
+      ],
+      "metadata": {
+        "id": "GzS-GC8Bl0rG"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df['State'].value_counts()"
+      ],
+      "metadata": {
+        "id": "a8n9toR3wrqo"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "#i am creating mapping between geojson and data we have \n",
+        "#for the i am gonna write a loop here\n",
+        "#in oreder to map this id with name of this state i am going to create dict\n",
+        "state_id_map = {}\n",
+        "for feature in india_states['features']:\n",
+        "  feature['id'] = feature['properties']['state_code']\n",
+        "  state_id_map[feature['properties']['st_nm']] = feature['id']\n"
+      ],
+      "metadata": {
+        "id": "pN7l6IIIkYVq"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "df['State'] = df['State'].replace({'Andaman-&-Nicobar-Islands':'Andaman & Nicobar Island',\n",
+        "                                   'Arunachal-Pradesh':'Arunachal Pradesh',\n",
+        "                                   'West-Bengal':'West Bengal',\n",
+        "                                   'Dadra-&-Nagar-Haveli-&-Daman-&-Diu':'Dadara & Nagar Havelli',\n",
+        "                                   'Himachal-Pradesh':'Himachal Pradesh',\n",
+        "                                   'Tamil-Nadu':'Tamil Nadu',\n",
+        "                                   'Madhya-Pradesh':'Madhya Pradesh',\n",
+        "                                   'Delhi':'NCT of Delhi',\n",
+        "                                   'Uttar-Pradesh':'Uttar Pradesh',\n",
+        "                                   'Jammu-&-Kashmir':'Jammu & Kashmir',\n",
+        "                                   'Andhra-Pradesh':'Andhra Pradesh',\n",
+        "                                   'Ladakh':'Jammu & Kashmir',\n",
+        "                                   'Arunachal Pradesh':'Arunanchal Pradesh',\n",
+        "                                   'Nct Of Delhi':'NCT of Delhi'})"
+      ],
+      "metadata": {
+        "id": "wBlsyhrpz3xS"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "state_id_map"
+      ],
+      "metadata": {
+        "id": "lAZK-9qdnIhs"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "new_dict = dict((k.lower(), v) for k, v in state_id_map.items()) \n",
+        "\n"
+      ],
+      "metadata": {
+        "id": "0_Gf0S7ahJES"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import plotly.io as pio\n",
+        "pio.renderers.default= 'colab'"
+      ],
+      "metadata": {
+        "id": "Z-vrLWy4CBSp"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "fig=px.choropleth(df, locations='id', geojson=india_states, color = 'Transacion_count',scope='asia')\n",
+        "\n",
+        "fig.update_geos(fitbounds=\"locations\",visible=False)\n",
+        "fig.show()\n"
+      ],
+      "metadata": {
+        "id": "UwzJIiIP4Rwn"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "dfAg.head()"
+      ],
+      "metadata": {
+        "id": "gbEUPcFdjTxj"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "dfAg['State'] = dfAg['State'].str.title()"
+      ],
+      "metadata": {
+        "id": "OwDnHbwArYw3"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "dfAg['State']"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "ctQmFaMWscNc",
+        "outputId": "52bca239-80d1-4a2a-8e0a-f18844ab33e9"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "execute_result",
+          "data": {
+            "text/plain": [
+              "100     Andaman-&-Nicobar-Islands\n",
+              "101     Andaman-&-Nicobar-Islands\n",
+              "102     Andaman-&-Nicobar-Islands\n",
+              "103     Andaman-&-Nicobar-Islands\n",
+              "104     Andaman-&-Nicobar-Islands\n",
+              "                  ...            \n",
+              "3589                        Bihar\n",
+              "3590                        Bihar\n",
+              "3591                        Bihar\n",
+              "3592                        Bihar\n",
+              "3593                        Bihar\n",
+              "Name: State, Length: 3494, dtype: object"
+            ]
+          },
+          "metadata": {},
+          "execution_count": 159
+        }
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "dfAg['State'] = dfAg['State'].replace({'Andaman-&-Nicobar-Islands':'Andaman & Nicobar Island',\n",
+        "                                   'Arunachal-Pradesh':'Arunachal Pradesh',\n",
+        "                                   'West-Bengal':'West Bengal',\n",
+        "                                   'Dadra-&-Nagar-Haveli-&-Daman-&-Diu':'Dadara & Nagar Havelli',\n",
+        "                                   'Himachal-Pradesh':'Himachal Pradesh',\n",
+        "                                   'Tamil-Nadu':'Tamil Nadu',\n",
+        "                                   'Madhya-Pradesh':'Madhya Pradesh',\n",
+        "                                   'Delhi':'NCT of Delhi',\n",
+        "                                   'Uttar-Pradesh':'Uttar Pradesh',\n",
+        "                                   'Jammu-&-Kashmir':'Jammu & Kashmir',\n",
+        "                                   'Andhra-Pradesh':'Andhra Pradesh',\n",
+        "                                   'Ladakh':'Jammu & Kashmir',\n",
+        "                                   'Arunachal Pradesh':'Arunanchal Pradesh',\n",
+        "                                   'Nct Of Delhi':'NCT of Delhi',\n",
+        "                                   'andaman-&-nicobar-islands':'Andaman & Nicobar Island',\n",
+        "                                   'Andaman & Nicobar Island':'Andaman & Nicobar Island'})"
+      ],
+      "metadata": {
+        "id": "P5dOesWormyo"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "india_states1= json.load(open(\"states_india.geojson\",\"r\"))\n",
+        "state_id_map1 = {}\n",
+        "for feature in india_states['features']:\n",
+        "        feature['id']=feature['properties']['state_code']\n",
+        "        state_id_map1[feature['properties']['st_nm']]=feature['id']\n",
+        "\n",
+        "new_dict = dict((k.lower(), v) for k, v in state_id_map.items()) \n",
+        "\n",
+        "dfAg['id']=dfAg['State'].apply(lambda x: new_dict[x])\n",
+        "\n",
+        "fig=px.choropleth(dfAg,\n",
+        "                  locations='id',\n",
+        "                  geojson=india_states,\n",
+        "                  color='count',\n",
+        "                  hover_name='state_name',\n",
+        "                  hover_data=['amount'],\n",
+        "                  title='Transactions')\n",
+        "                   \n",
+        "                    \n",
+        "fig.update_geos(fitbounds='locations',visible=False)\n",
+        "\n",
+        "    \n",
+        "    "
+      ],
+      "metadata": {
+        "id": "oaoW-QofiIsC"
+      },
+      "execution_count": null,
+      "outputs": []
+    }
+  ]
+}
